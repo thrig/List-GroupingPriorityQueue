@@ -1,0 +1,243 @@
+# -*- Perl -*-
+#
+# based on List::PriorityQueue execpt that payloads with identical
+# priorities are grouped together
+
+package List::GroupingPriorityQueue;
+
+use 5.6.0;
+use strict;
+use warnings;
+our $VERSION = '0.01';
+
+use parent qw(Exporter);
+our @EXPORT_OK =
+  qw(grpriq_add grpriq_min grpriq_min_values grpriq_max grpriq_max_values);
+
+########################################################################
+#
+# FUNCTIONS
+
+sub grpriq_add {
+    my ($qref, $payload, $priority) = @_;
+    # special cases
+    unless (@$qref) {
+        @$qref = [ [$payload], $priority ];
+        return;
+    }
+    if ($priority > $qref->[-1][1]) {
+        push @$qref, [ [$payload], $priority ];
+        return;
+    }
+    if ($priority < $qref->[0][1]) {
+        unshift @$qref, [ [$payload], $priority ];
+        return;
+    }
+    if ($priority == $qref->[-1][1]) {
+        push @{ $qref->[-1][0] }, $payload;
+        return;
+    }
+    if ($priority == $qref->[0][1]) {
+        push @{ $qref->[0][0] }, $payload;
+        return;
+    }
+    my $lower = 0;
+    my $midpoint;
+    my $upper = $#$qref;
+    while ($lower <= $upper) {
+        $midpoint = ($lower + $upper) >> 1;
+        if ($priority < $qref->[$midpoint][1]) {
+            $upper = $midpoint - 1;
+            next;
+        }
+        if ($priority > $qref->[$midpoint][1]) {
+            $lower = $midpoint + 1;
+            next;
+        }
+        push @{ $qref->[$lower][0] }, $payload;
+        return;
+    }
+    splice @$qref, $lower, 0, [ [$payload], $priority ];
+    return;
+}
+
+sub grpriq_min { shift @{ $_[0] } }
+
+sub grpriq_min_values {
+    my $ref = shift @{ $_[0] };
+    return unless defined $ref;
+    $ref->[0];
+}
+
+sub grpriq_max { pop @{ $_[0] } }
+
+sub grpriq_max_values {
+    my $ref = pop @{ $_[0] };
+    return unless defined $ref;
+    $ref->[0];
+}
+
+########################################################################
+#
+# METHODS
+
+sub new { bless { queue => [] }, $_[0] }
+
+sub insert {
+    my ($self, $payload, $priority) = @_;
+    grpriq_add($self->{queue}, $payload, $priority);
+    return $self;
+}
+
+sub min { shift @{ $_[0]->{queue} } }
+
+sub min_values {
+    my $ref = shift @{ $_[0]->{queue} };
+    return unless defined $ref;
+    $ref->[0];
+}
+*pop = \&min_values;
+
+sub max { pop @{ $_[0]->{queue} } }
+
+sub max_values {
+    my $ref = pop @{ $_[0]->{queue} };
+    return unless defined $ref;
+    $ref->[0];
+}
+
+
+1;
+__END__
+
+=head1 NAME
+
+List::GroupingPriorityQueue - priority queue with grouping
+
+=head1 SYNOPSIS
+
+  use List::GroupingPriorityQueue
+    qw(grpriq_add grpriq_min_values);
+
+  my $queue = [];
+  grpriq_add($queue, 'cat', 2);
+  grpriq_add($queue, 'dog', 4);
+  grpriq_add($queue, 'mlatu', 2);
+  grpriq_min_values($queue);        # ['cat', 'mlatu']
+
+  # OO
+  my $pq = List::GroupingPriorityQueue->new;
+  $pq->insert('cat', 2);
+  $pq->insert('dog', 4);
+  $pq->insert('mlatu', 2);
+  $pq->pop;                         # ['cat', 'mlatu']
+
+=head1 DESCRIPTION
+
+This priority queue implementation provides grouping of elements with
+the same priority. With a traditional priority queue multiple "pop"
+calls would need to be made until the priority value changes; worse,
+some implementations do not return the priority value. That information
+would need to be encoded into and decoded from the payload under such
+implementations. This module instead considers payloads with the same
+priority as belonging to the same set and returns them together as an
+array reference.
+
+=head1 FUNCTIONS
+
+The following functions are available for export. An array reference
+I<qref> is operated on. Modification of the I<qref> in the calling code
+may break this module in unexpected ways.
+
+=over 4
+
+=item B<grpriq_add> I<qref> I<payload> I<priority>
+
+Adds the given payload to the queue I<qref>. There is no return value.
+
+=item B<grpriq_min> I<qref>
+
+Returns the lowest priority C<[[payload],priority]> array reference
+from I<qref>, if any. When the queue is empty a bare C<return> is
+used to return an empty list or undefined value depending on the
+calling context.
+
+Use this if you need the priority value for some calculation.
+
+=item B<grpriq_min_values> I<qref>
+
+Returns the lowest priority C<[payload]> array reference from
+I<qref>, if any.
+
+=item B<grpriq_max> I<qref>
+
+Returns the highest priority C<[[payload],priority]> array reference
+from I<qref>, if any.
+
+=item B<grpriq_max_values> I<qref>
+
+Returns the highest priority C<[payload]> array reference from
+I<qref>, if any.
+
+=back
+
+=head1 METHODS
+
+A simple OO interface is also provided. This hides the I<qref> but adds
+the overhead of OO.
+
+=over 4
+
+=item B<new>
+
+Constructor.
+
+=item B<insert> I<payload> I<priority>
+
+Adds the payload to the priority queue.
+
+=item B<min>
+
+Returns the lowest priority C<[[payload],priority]> array reference.
+
+=item B<min_values>
+
+Returns the payload (or payloads) with the lowest priority as an array
+reference.
+
+=item B<max>
+
+Returns the lowest priority C<[[payload],priority]> array reference.
+
+=item B<max_values>
+
+Returns the payload (or payloads) with the highest priority as an array
+reference.
+
+=item B<pop>
+
+Alias for B<min_values>. Makes the interface similar to that of
+L<List::PriorityQueue>.
+
+=back
+
+=head1 BUGS
+
+<https://github.com/thrig/List-GroupingPriorityQueue>
+
+=head1 SEE ALSO
+
+L<List::PriorityQueue> - what I used in L<Game::PlatformsOfPeril>, and
+what this module is based on. Other priority queue modules on CPAN have
+different features that may suit particular needs better, see e.g.
+L<Array::Queue::Priority>, L<Hash::PriorityQueue>, and
+L<Queue::Priority> among others.
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2021 Jeremy Mates
+
+This program is distributed under the (Revised) BSD License:
+L<https://opensource.org/licenses/BSD-3-Clause>
+
+=cut
