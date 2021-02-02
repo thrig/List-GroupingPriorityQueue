@@ -1,5 +1,5 @@
 #!perl
-use Test::Most;
+use Test::Most tests => 23;
 my $deeply = \&eq_or_diff;
 
 use List::GroupingPriorityQueue
@@ -12,6 +12,12 @@ $deeply->($queue, [ [ ['re'], 2 ] ]);
 
 grpriq_add($queue, 'bi', 8);
 $deeply->($queue, [ [ ['re'], 2 ], [ ['bi'], 8 ] ]);
+
+# synopsis
+#for my $entry (@{$queue}) {
+#    my ($payload_r, $priority) = @{$entry};
+#    use Data::Dumper; diag $priority, " ", Dumper $payload_r;
+#}
 
 grpriq_add($queue, 'no', 0);
 $deeply->(
@@ -95,4 +101,16 @@ $deeply->($pq->max_values, ['tirxu']);
 is($pq->min_values, undef);
 is($pq->max_values, undef);
 
-done_testing;
+# ->each
+$pq->insert(qw/perli 5/);
+$pq->insert(qw/plise 1/);
+my (@gismu, @priorities);
+$pq->each(
+    sub {
+        my ($pay, $pri) = @_;
+        push @gismu,      @$pay;
+        push @priorities, $pri;
+    }
+);
+$deeply->(\@priorities, [ 1, 5 ]);
+$deeply->(\@gismu,      [qw/plise perli/]);

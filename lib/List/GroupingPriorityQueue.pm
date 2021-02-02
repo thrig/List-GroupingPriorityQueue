@@ -81,6 +81,13 @@ sub grpriq_max_values {
 #
 # METHODS
 
+sub each {
+    my ($self, $callback) = @_;
+    while (my $entry = shift @{$self->{queue}}) {
+        $callback->(@$entry);
+    }
+}
+
 sub new { bless { queue => [] }, $_[0] }
 
 sub insert {
@@ -125,12 +132,30 @@ List::GroupingPriorityQueue - priority queue with grouping
   grpriq_add($queue, 'mlatu', 2);
   grpriq_min_values($queue);        # ['cat', 'mlatu']
 
+  # fast iteration ($queue must not be modified mid-loop)
+  for my $entry (@{$queue}) {
+      my ($payload_r, $priority) = @{$entry};
+      ...
+  }
+
   # OO
   my $pq = List::GroupingPriorityQueue->new;
   $pq->insert('cat', 2);
   $pq->insert('dog', 4);
   $pq->insert('mlatu', 2);
   $pq->pop;                         # ['cat', 'mlatu']
+
+  # slow iteration (but allows new items to be added)
+  while (my $payload_r = $pq->pop) {
+      ...
+  }
+  # or instead via
+  $pq->each(
+    sub {
+        my ($payload_r, $priority) = @_;
+        ...
+    }
+  );
 
 =head1 DESCRIPTION
 
@@ -141,7 +166,8 @@ some implementations do not return the priority value. That information
 would need to be encoded into and decoded from the payload under such
 implementations. This module instead considers payloads with the same
 priority as belonging to the same set and returns them together as an
-array reference.
+array reference. The priority information is available to the caller,
+if need be.
 
 =head1 FUNCTIONS
 
@@ -155,38 +181,46 @@ may break this module in unexpected ways.
 
 Adds the given payload to the queue I<qref>. There is no return value.
 
+The priority value should probably be an integer; floating point values
+are more likely to run into compiler or platform wonkiness should the
+queue be saved to disk and reloaded elsewhere.
+
 =item B<grpriq_min> I<qref>
 
-Returns the lowest priority C<[[payload],priority]> array reference
-from I<qref>, if any. When the queue is empty a bare C<return> is
-used to return an empty list or undefined value depending on the
-calling context.
+Pulls the lowest priority C<[[payload,...],priority]> array reference
+from I<qref>, if any.
 
 Use this if you need the priority value for some calculation.
 
 =item B<grpriq_min_values> I<qref>
 
-Returns the lowest priority C<[payload]> array reference from
-I<qref>, if any.
+Pulls the lowest priority C<[payload,...]> array reference from I<qref>,
+if any. Equivalent to B<pop> in the OO interface.
 
 =item B<grpriq_max> I<qref>
 
-Returns the highest priority C<[[payload],priority]> array reference
+Pulls the highest priority C<[[payload,...],priority]> array reference
 from I<qref>, if any.
 
 =item B<grpriq_max_values> I<qref>
 
-Returns the highest priority C<[payload]> array reference from
+Pulls the highest priority C<[payload,...]> array reference from
 I<qref>, if any.
 
 =back
 
 =head1 METHODS
 
-A simple OO interface is also provided. This hides the I<qref> but adds
-the overhead of OO.
+A simple OO interface is also provided. This hides the I<qref> but
+adds overhead.
 
 =over 4
+
+=item B<each> I<callback>
+
+Iterator that drains the queue by minimum value. The I<callback> code
+reference is passed the payload array reference and priority value for
+each element in the queue.
 
 =item B<new>
 
@@ -203,7 +237,7 @@ Returns the lowest priority C<[[payload],priority]> array reference.
 =item B<min_values>
 
 Returns the payload (or payloads) with the lowest priority as an array
-reference.
+reference. Alias: B<pop>.
 
 =item B<max>
 
@@ -231,7 +265,7 @@ L<List::PriorityQueue> - what I used in L<Game::PlatformsOfPeril>, and
 what this module is based on. Other priority queue modules on CPAN have
 different features that may suit particular needs better, see e.g.
 L<Array::Queue::Priority>, L<Hash::PriorityQueue>, and
-L<Queue::Priority> among others.
+L<Queue::Priority>, among others.
 
 =head1 COPYRIGHT AND LICENSE
 
