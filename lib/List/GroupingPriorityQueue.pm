@@ -267,6 +267,9 @@ different features that may suit particular needs better, see e.g.
 L<Array::Queue::Priority>, L<Hash::PriorityQueue>, and
 L<Queue::Priority>, among others.
 
+L<Music::RhythmSet> makes use of this module to record changes in beat
+patterns across multiple musical voices.
+
 =head1 COPYRIGHT AND LICENSE
 
 Copyright 2021 Jeremy Mates
