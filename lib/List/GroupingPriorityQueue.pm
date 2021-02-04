@@ -54,7 +54,7 @@ sub grpriq_add {
             $lower = $midpoint + 1;
             next;
         }
-        push @{ $qref->[$lower][0] }, $payload;
+        push @{ $qref->[$midpoint][0] }, $payload;
         return;
     }
     splice @$qref, $lower, 0, [ [$payload], $priority ];
