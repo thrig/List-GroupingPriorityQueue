@@ -19,45 +19,45 @@ our @EXPORT_OK =
 # FUNCTIONS
 
 sub grpriq_add {
-    my ($qref, $payload, $priority) = @_;
+    my ( $qref, $priority, @rest ) = @_;
     # special cases
     unless (@$qref) {
-        @$qref = [ [$payload], $priority ];
+        @$qref = [ [@rest], $priority ];
         return;
     }
-    if ($priority > $qref->[-1][1]) {
-        push @$qref, [ [$payload], $priority ];
+    if ( $priority > $qref->[-1][1] ) {
+        push @$qref, [ [@rest], $priority ];
         return;
     }
-    if ($priority < $qref->[0][1]) {
-        unshift @$qref, [ [$payload], $priority ];
+    if ( $priority < $qref->[0][1] ) {
+        unshift @$qref, [ [@rest], $priority ];
         return;
     }
-    if ($priority == $qref->[-1][1]) {
-        push @{ $qref->[-1][0] }, $payload;
+    if ( $priority == $qref->[-1][1] ) {
+        push @{ $qref->[-1][0] }, @rest;
         return;
     }
-    if ($priority == $qref->[0][1]) {
-        push @{ $qref->[0][0] }, $payload;
+    if ( $priority == $qref->[0][1] ) {
+        push @{ $qref->[0][0] }, @rest;
         return;
     }
     my $lower = 0;
     my $midpoint;
     my $upper = $#$qref;
-    while ($lower <= $upper) {
-        $midpoint = ($lower + $upper) >> 1;
-        if ($priority < $qref->[$midpoint][1]) {
+    while ( $lower <= $upper ) {
+        $midpoint = ( $lower + $upper ) >> 1;
+        if ( $priority < $qref->[$midpoint][1] ) {
             $upper = $midpoint - 1;
             next;
         }
-        if ($priority > $qref->[$midpoint][1]) {
+        if ( $priority > $qref->[$midpoint][1] ) {
             $lower = $midpoint + 1;
             next;
         }
-        push @{ $qref->[$midpoint][0] }, $payload;
+        push @{ $qref->[$midpoint][0] }, @rest;
         return;
     }
-    splice @$qref, $lower, 0, [ [$payload], $priority ];
+    splice @$qref, $lower, 0, [ [@rest], $priority ];
     return;
 }
 
@@ -82,8 +82,8 @@ sub grpriq_max_values {
 # METHODS
 
 sub each {
-    my ($self, $callback) = @_;
-    while (my $entry = shift @{$self->{queue}}) {
+    my ( $self, $callback ) = @_;
+    while ( my $entry = shift @{ $self->{queue} } ) {
         $callback->(@$entry);
     }
 }
@@ -91,8 +91,8 @@ sub each {
 sub new { bless { queue => [] }, $_[0] }
 
 sub insert {
-    my ($self, $payload, $priority) = @_;
-    grpriq_add($self->{queue}, $payload, $priority);
+    my ( $self, $priority, @rest ) = @_;
+    grpriq_add( $self->{queue}, $priority, @rest );
     return $self;
 }
 
@@ -113,7 +113,6 @@ sub max_values {
     $ref->[0];
 }
 
-
 1;
 __END__
 
@@ -127,9 +126,9 @@ List::GroupingPriorityQueue - priority queue with grouping
     qw(grpriq_add grpriq_min_values);
 
   my $queue = [];
-  grpriq_add($queue, 'cat', 2);
-  grpriq_add($queue, 'dog', 4);
-  grpriq_add($queue, 'mlatu', 2);
+  grpriq_add($queue, 2, 'cat');
+  grpriq_add($queue, 4, 'dog');
+  grpriq_add($queue, 2, 'mlatu');
   grpriq_min_values($queue);        # ['cat', 'mlatu']
 
   # fast iteration ($queue must not be modified mid-loop)
@@ -140,9 +139,9 @@ List::GroupingPriorityQueue - priority queue with grouping
 
   # OO
   my $pq = List::GroupingPriorityQueue->new;
-  $pq->insert('cat', 2);
-  $pq->insert('dog', 4);
-  $pq->insert('mlatu', 2);
+  $pq->insert(2, 'cat');
+  $pq->insert(4, 'dog');
+  $pq->insert(2, 'mlatu');
   $pq->pop;                         # ['cat', 'mlatu']
 
   # slow iteration (but allows new items to be added)
@@ -177,13 +176,18 @@ may break this module in unexpected ways.
 
 =over 4
 
-=item B<grpriq_add> I<qref> I<payload> I<priority>
+=item B<grpriq_add> I<qref> I<priority> I<payload> ...
 
-Adds the given payload to the queue I<qref>. There is no return value.
+Adds the given payload(s) to the queue I<qref>. There is no
+return value.
 
-The priority value should probably be an integer; floating point values
-are more likely to run into compiler or platform wonkiness should the
-queue be saved to disk and reloaded elsewhere.
+B<Note that the order of arguments differs from other priority queue
+modules>; the difference allows multiple payload elements to be added
+with a single call.
+
+The priority should probably be an integer; floating point values are
+more likely to run into compiler or platform wonkiness should the queue
+be saved to disk and reloaded elsewhere.
 
 =item B<grpriq_min> I<qref>
 
@@ -226,9 +230,13 @@ each element in the queue.
 
 Constructor.
 
-=item B<insert> I<payload> I<priority>
+=item B<insert> I<priority> I<payload> ...
 
-Adds the payload to the priority queue.
+Adds the payload(s) to the priority queue.
+
+B<Note that the order of arguments differs from other priority queue
+modules>; the difference allows multiple payload elements to be added
+with a single call.
 
 =item B<min>
 
